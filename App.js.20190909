@@ -1,0 +1,213 @@
+import React, { useState, Component } from 'react';
+//import { Constants } from 'expo';
+import { StyleSheet, Text, View, Button, TouchableHighlight, ScrollView, ListView } from 'react-native';
+import Swipeout from 'react-native-swipeout';
+import { Menu, MenuProvider, MenuContext, MenuOptions, MenuOption, MenuTrigger } from 'react-native-popup-menu';
+import { SQLite } from "expo-sqlite";
+
+//return (
+//  <View style={styles.container}>
+//    <Text>{outputText}</Text>
+//    <Button title='hello' onPress={() => b('The text changed')} />
+//  </View>
+//);
+//<Image source={require('./donut.jpg')} />
+//style={{ flex: 1, backgroundColor: 'powderblue' }}
+//<Text style={{ alignSelf: 'auto' }}>{item}</Text>
+
+var swipeoutBtns = [
+    {
+        text: 'Button'
+    }
+]
+
+const menuItems = ["apple", "pear", "cherry", "pineapple"];
+
+class mySqlHandler {
+
+    errorCB(err) {
+        console.log("SQL Error: " + err);
+    };
+
+    successCB() {
+        console.log("SQL executed fine");
+    };
+
+    openCB() {
+        console.log("Database OPENED");
+    };
+
+    constructor() {
+        this.db = SQLite.openDatabase("db.db", '1.0', 'test DB', 200000, this.openCB, this.errorCB);
+    }
+
+    createMySqlDB(count, item) {
+
+        this.db.transaction((tx) => {
+            //tx.executeSql(
+            //    "truncate table Menu;"
+            //);
+            console.log("drop");
+
+            tx.executeSql(
+                "create table if not exists Menu2 (id int,  name text);"
+            );
+            console.log("create");
+
+            console.log("insert into Menu2 (id, name) values (" + count + ", " + item + ");");
+            tx.executeSql(
+                "insert into Menu2 (id, name) values ( " + count + ", foo);"
+            );
+            console.log("inserted");
+
+        }, this.errorCB, this.successCB);
+    }
+
+    static instance = null;
+
+    static createInstance() {
+        var object = new mySqlHandler();
+        return object;
+    }
+
+    static getInstance() {
+        if (!mySqlHandler.instance) {
+            mySqlHandler.instance = mySqlHandler.createInstance();
+        }
+        return mySqlHandler.instance;
+    }
+}
+
+export class MenuItem extends Component {
+
+    render() {
+        return <TouchableHighlight
+            style={{ borderWidth: 5, height: 100, width: 100, padding: 10 }}
+            onPress={() => {
+                mySqlHandler.createInstance().createMySqlDB(this.props.count, this.props.name);
+                //addOrderedItems(this.props.name);
+                this.props.textAppend([...this.props.text, this.props.name]);
+                console.log("finished adding " + this.props.name);
+            }}>
+            <Menu>
+                <MenuTrigger text={this.props.name} />
+                <MenuOptions>
+                    <MenuOption onSelect={() => alert(`Add`)} text="Add" />
+                    <MenuOption onSelect={() => alert(`Delete`)}>
+                        <Text style={{ color: 'red' }}>Delete</Text>
+                    </MenuOption>
+                    <MenuOption
+                        onSelect={() => alert(`Not called`)}
+                        disabled={true}
+                        text="Disabled"
+                    />
+                </MenuOptions>
+            </Menu>
+        </TouchableHighlight>
+    }
+}
+
+
+export default function App() {
+
+    let count = 0;
+
+    const [text, textAppend] = useState([]);
+
+    console.log("hello");
+    //console.warn("hello again");
+
+    const logSomething = () => {
+        console.log('log something was ran');
+    }
+
+    function addOrderedItems(textToDisplay) {
+        textAppend(text => [...text, textToDisplay]);
+    }
+
+    function componentDidMount(item) {
+        count = count + 1;
+
+        var dbInstance = mySqlHandler.createInstance();
+        dbInstance.transaction((tx) => {
+            tx.executeSql(
+                'select * from Menu2;', [], (tx, results) => {
+                    console.log("INININ");
+                    var len = results.rows.length, i;
+                    console.log(len);
+                    for (i = 0; i < len; i++) {
+                        console.log("RESULT->" + results.rows.item(i).id);
+                    }
+                }, mySqlHandler.errorCB, mySqlHandler.successCB);
+            console.log("select");
+        });
+    }
+
+    function createMenuItem(item) {
+        let menuItemCount = 0;
+        return (
+            <MenuProvider>
+                <MenuItem name={item} count={menuItemCount} />
+            </MenuProvider >
+        );
+    }
+
+    function createOrderItem(item) {
+        return (<Swipeout autoClose={true} close={true} right={swipeoutBtns} >
+            <View>
+                <Text style={styles.textStyle}>{item}</Text>
+            </View>
+        </Swipeout >);
+        //return (<Text style={styles.textStyle} >{item}</Text>);
+    }
+
+    return (
+        <View style={{ flex: 1, alignItems: 'stretch' }}>
+            <View style={{ flex: 1, backgroundColor: 'green' }} />
+            <View style={{ flex: 6, backgroundColor: 'skyblue', flexDirection: 'row' }}>
+                <View style={{ flex: 1 }}>
+                    <ScrollView style={styles.contentContainer}>
+                        {text.map((x) => createOrderItem(x))}
+                    </ScrollView>
+                </View>
+                <View style={{ flex: 2.5, backgroundColor: 'darkseagreen', flexDirection: 'row' }}>
+                    {menuItems.map((x) => {
+                        console.log(x);
+                        const out = createMenuItem(x);
+                        return out;
+                    })}
+                </View>
+            </View>
+        </View >
+    );
+}
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderColor: '#2a4944',
+        borderWidth: 1,
+        backgroundColor: '#d2f7f1',
+        padding: 50
+    },
+    contentContainer: {
+        paddingVertical: 20,
+        fontSize: 18,
+        height: 40
+    },
+    textStyle: {
+        fontSize: 48,
+        borderColor: '#2a4944',
+        borderWidth: 1,
+        backgroundColor: '#d2f7f1'
+    },
+    menuContainer: {
+        //flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        //paddingTop: Constants.statusBarHeight,
+        backgroundColor: '#ecf0f1',
+    },
+});
